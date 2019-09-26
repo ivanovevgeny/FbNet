@@ -16,5 +16,6 @@
         public string Permissions { get; set; }
         public string Privacy { get; set; }
         public string Name { get; set; }
+        public bool Administrator { get; set; }
     }
 }

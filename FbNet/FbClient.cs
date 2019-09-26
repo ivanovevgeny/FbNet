@@ -9,6 +9,7 @@ namespace FbNet
 {
     public interface IFbClient
     {
+        Task<string> GetAsyncString(string accessToken, string endpoint, string args = null);
         Task<T> GetAsync<T>(string accessToken, string endpoint, string args = null);
         Task PostAsync(string accessToken, string endpoint, object data, string args = null);
     }
@@ -37,6 +38,17 @@ namespace FbNet
             var result = await response.Content.ReadAsStringAsync();
 
             return JsonConvert.DeserializeObject<T>(result);
+        }
+
+        public async Task<string> GetAsyncString(string accessToken, string endpoint, string args = null)
+        {
+            var response = await _httpClient.GetAsync($"{endpoint}?access_token={accessToken}&{args}");
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var result = await response.Content.ReadAsStringAsync();
+
+            return result;
         }
 
         public async Task PostAsync(string accessToken, string endpoint, object data, string args = null)
