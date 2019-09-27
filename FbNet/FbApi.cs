@@ -32,6 +32,11 @@ namespace FbNet
         ///// <summary>
         ///// API для работы с группами.
         ///// </summary>
+        public AccountsCategory Pages { get; }
+
+        ///// <summary>
+        ///// API для работы с группами.
+        ///// </summary>
         public GroupsCategory Groups { get; }
 
         /// <summary>
@@ -48,6 +53,7 @@ namespace FbNet
         public FbApi()
         {
             Users = new UsersCategory(this);
+            Pages = new AccountsCategory(this);
             Groups = new GroupsCategory(this);
             Albums = new AlbumsCategory(this);
             Photos = new PhotosCategory(this);

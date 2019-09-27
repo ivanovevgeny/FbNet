@@ -50,6 +50,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Categories\AccountsCategory.cs" />
     <Compile Include="Categories\GroupsCategory.cs" />
     <Compile Include="Categories\AlbumsCategory.cs" />
     <Compile Include="Categories\UsersCategory.cs" />
@@ -60,6 +61,7 @@
     <Compile Include="FbClient.cs" />
     <Compile Include="Model\Album.cs" />
     <Compile Include="Model\CoverPhoto.cs" />
+    <Compile Include="Model\Page.cs" />
     <Compile Include="Model\Group.cs" />
     <Compile Include="Model\Location.cs" />
     <Compile Include="Model\Photo.cs" />

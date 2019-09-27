@@ -14,6 +14,13 @@
         public string LastName { get; set; }
         public string MiddleName { get; set; }
         public string Gender { get; set; }
-        public string ProfilePic { get; set; }
+        public UserPicture Picture { get; set; }
+    }
+
+    public class UserPicture
+    {
+        public long Height { get; set; }
+        public long Width { get; set; }
+        public string Url { get; set; }
     }
 }
