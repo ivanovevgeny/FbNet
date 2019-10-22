@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using FbNet.Model;
 
@@ -15,7 +16,7 @@ namespace FbNet.Categories
 
         public ReadOnlyCollection<Album> GetGroupAlbums(string groupId, string fields = "cover_photo{icon,source},name,can_upload")
         {
-            dynamic data = _fb.Client.Get($"{groupId}/albums", new {fields});
+            dynamic data = _fb.Get($"{groupId}/albums", new {fields});
 
             if (data == null || data.data == null) return null;
 
@@ -39,7 +40,7 @@ namespace FbNet.Categories
 
         public ReadOnlyCollection<Album> GetPageAlbums(string pageId, string fields = "cover_photo{icon,source},name,can_upload")
         {
-            dynamic data = _fb.Client.Get($"{pageId}/albums", new {fields});
+            dynamic data = _fb.Get($"{pageId}/albums", new {fields});
 
             if (data == null || data.data == null) return null;
 
@@ -63,7 +64,7 @@ namespace FbNet.Categories
 
         public Album Create(string title, string groupId)
         {
-            dynamic data = _fb.Client.Post($"{groupId}/albums", new {name=title});
+            dynamic data = _fb.Post($"{groupId}/albums", new {name=title});
             if (data == null) return null;
 
             return new Album {CanUpload = true, Id = data.id, Name = title};
@@ -71,7 +72,7 @@ namespace FbNet.Categories
 
         public Album Get(string id, string fields = "can_upload,cover_photo,link,name,privacy,type,updated_time")
         {
-            dynamic data = _fb.Client.Get($"{id}", new {fields});
+            dynamic data = _fb.Get($"{id}", new {fields});
             if (data == null) return null;
 
             var info = new Album
@@ -83,7 +84,7 @@ namespace FbNet.Categories
                 Link = data.link,
                 Type = data.type,
                 //Permissions = item.permissions,
-                UpdatedTime = data.updated_time
+                UpdatedTime = Utils.ParseDate(data.updated_time)
             };
 
             return info;

@@ -15,7 +15,7 @@ namespace FbNet.Categories
 
         public ReadOnlyCollection<Group> GetCurrentUserGroups(string fields = "administrator,cover,icon,name,permissions,privacy")
         {
-            dynamic data = _fb.Client.Get("me/groups", new {fields});
+            dynamic data = _fb.Get("me/groups", new {fields});
 
             if (data == null || data.data == null) return null;
 

@@ -15,7 +15,7 @@ namespace FbNet.Categories
 
         public ReadOnlyCollection<Page> GetCurrentUserAccounts(string fields = "name,link,cover,can_post")
         {
-            dynamic data = _fb.Client.Get("me/accounts", new {fields});
+            dynamic data = _fb.Get("me/accounts", new {fields});
 
             if (data == null || data.data == null) return null;
 

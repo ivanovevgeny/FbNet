@@ -13,7 +13,7 @@ namespace FbNet.Categories
 
         public User GetCurrentUser(string fields = "id,name,email,first_name,last_name,birthday,gender,locale,address,picture")
         {
-            dynamic data = _fb.Client.Get("me", new {fields});
+            dynamic data = _fb.Get("me", new {fields});
             if (data == null) return null;
 
             var address = data.address;

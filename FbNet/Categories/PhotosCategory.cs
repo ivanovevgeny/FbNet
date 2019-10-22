@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using FbNet.Model;
 
 namespace FbNet.Categories
@@ -23,7 +24,7 @@ namespace FbNet.Categories
 
         public Photo Get(string id, string fields = DefaultFields)
         {
-            dynamic data = _fb.Client.Get("{id}", new {fields});
+            dynamic data = _fb.Get("{id}", new {fields});
             if (data == null) return null;
 
             var info = new Photo
@@ -34,7 +35,7 @@ namespace FbNet.Categories
                 Height = data.height,
                 CanDelete = data.can_delete,
                 Link = data.link,
-                UpdatedTime = data.updated_time
+                UpdatedTime = Utils.ParseDate(data.updated_time)
             };
 
             return info;
@@ -42,7 +43,7 @@ namespace FbNet.Categories
 
         public List<Photo> Get(List<string> ids, string fields = DefaultFields)
         {
-            dynamic data = _fb.Client.Get("{id}", new {fields});
+            dynamic data = _fb.Get("{id}", new {fields});
             if (data == null) return null;
 
             var res = new List<Photo>();
@@ -59,7 +60,7 @@ namespace FbNet.Categories
                     Height = item.height,
                     CanDelete = item.can_delete,
                     Link = item.link,
-                    UpdatedTime = item.updated_time
+                    UpdatedTime = Utils.ParseDate(item.updated_time)
                 };
                 res.Add(info);
             }
@@ -69,32 +70,44 @@ namespace FbNet.Categories
 
         public Photo Create(string albumId, string caption, string url, bool published = true, string fields = DefaultFields)
         {
-            dynamic data = _fb.Client.Post($"{albumId}/photos", new {caption, url, published, fields});
-            if (data == null) return null;
+            var oldAccessToken = _fb.AccessToken;
+            if (_fb.PageId != null)
+                _fb.AccessToken = _fb.PageAccessToken;
 
-            var info = new Photo
+            try
             {
-                Id = data.id,
-                Name = data.name,
-                Width = data.width,
-                Height = data.height,
-                CanDelete = data.can_delete,
-                Link = data.link,
-                UpdatedTime = data.updated_time
-            };
+                dynamic data = _fb.Post($"{albumId}/photos", new {caption, url, published, fields});
+                if (data == null) return null;
 
-            return info;
+                var info = new Photo
+                {
+                    Id = data.id,
+                    Name = data.name,
+                    Width = data.width,
+                    Height = data.height,
+                    CanDelete = data.can_delete,
+                    Link = data.link,
+                    UpdatedTime = Utils.ParseDate(data.updated_time)
+                };
+
+                return info;
+            }
+            finally
+            {
+                if (_fb.PageId != null)
+                    _fb.AccessToken = oldAccessToken;
+            }
         }
 
         public bool Edit(string id, string name)
         {
-            dynamic data = _fb.Client.Post($"{id}", new {name});
+            dynamic data = _fb.Post($"{id}", new {name});
             return data != null;
         }
         
         public bool Delete(string id)
         {
-            dynamic data = _fb.Client.Delete($"{id}");
+            dynamic data = _fb.Delete($"{id}");
             return data != null && data.success;
         }
     }

@@ -1,5 +1,7 @@
-﻿using Facebook;
+﻿using System;
+using Facebook;
 using FbNet.Categories;
+using FbNet.Exception;
 
 namespace FbNet
 {
@@ -14,6 +16,9 @@ namespace FbNet
             set => Client.AccessToken = value;
         }
 
+        public long? PageId { get; set; }
+        public string PageAccessToken { get; private set; }
+
         /// <summary>
         /// Секретный ключ сессии
         /// </summary>
@@ -21,7 +26,7 @@ namespace FbNet
 
         //private readonly IFbClient _client;
         
-        internal readonly FacebookClient Client;
+        private readonly FacebookClient Client;
 
         #region Категории
         ///// <summary>
@@ -69,6 +74,38 @@ namespace FbNet
                 Version = "v4.0",
                 UseFacebookBeta = false
             };
+        }
+
+        internal object Get(string path, object parameters)
+        {
+            return HandleApiResult(Client.Get(path, parameters));
+        }
+
+        internal object Post(string path, object parameters)
+        {
+            return HandleApiResult(Client.Post(path, parameters));
+        }
+
+        internal object Delete(string path)
+        {
+            return HandleApiResult(Client.Delete(path));
+        }
+
+        private static object HandleApiResult(dynamic result)
+        {
+            if (result != null && result.error != null) 
+                throw new FbApiMethodInvokeException(result.error.message, (int)result.error.code);
+            return result;
+        }
+
+        public string RefreshPageAccessToken(long pageId)
+        {
+            PageId = pageId;
+            //dynamic data = Client.Get($"{PageId}", new {fields = "access_token"});
+            //if (data == null) return null;
+            //PageAccessToken = data.access_token; // TODO вернуть
+            PageAccessToken = "EAARIofZCarDABAOhTfQOkY6MqEIh7Q88NIK76jPm6TZCFGPDc6flua6rwWh1OGNxYh6rnOuwB1N5Ep1nHNZBynxpqDHCFUEG4f63A8PbmHD6o3ZChRu4HJWAqArJVmkKisYzru9IqZAHSEq79AIUJwLfXTIGSwkLjLDqmmzyuGAZDZD";
+            return PageAccessToken;
         }
     }  
 }
