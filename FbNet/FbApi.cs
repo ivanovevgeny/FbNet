@@ -101,10 +101,10 @@ namespace FbNet
         public string RefreshPageAccessToken(long pageId)
         {
             PageId = pageId;
-            //dynamic data = Client.Get($"{PageId}", new {fields = "access_token"});
-            //if (data == null) return null;
-            //PageAccessToken = data.access_token; // TODO вернуть
-            PageAccessToken = "EAARIofZCarDABAOhTfQOkY6MqEIh7Q88NIK76jPm6TZCFGPDc6flua6rwWh1OGNxYh6rnOuwB1N5Ep1nHNZBynxpqDHCFUEG4f63A8PbmHD6o3ZChRu4HJWAqArJVmkKisYzru9IqZAHSEq79AIUJwLfXTIGSwkLjLDqmmzyuGAZDZD";
+            dynamic data = Client.Get($"{PageId}", new {fields = "access_token"});
+            if (data == null) return null;
+            PageAccessToken = data.access_token;
+
             return PageAccessToken;
         }
     }  

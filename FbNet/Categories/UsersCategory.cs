@@ -25,7 +25,6 @@ namespace FbNet.Categories
                 FirstName = data.first_name,
                 LastName = data.last_name,
                 Picture = data.picture?.data == null ? null : new UserPicture {Url = data.picture.data.url, Height = data.picture.data.height, Width = data.picture.data.width}
-                // TODO
             };
 
             /*if (address != null)
