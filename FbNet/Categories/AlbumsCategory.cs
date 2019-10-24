@@ -14,7 +14,7 @@ namespace FbNet.Categories
             _fb = fb;
         }
 
-        public ReadOnlyCollection<Album> GetGroupAlbums(string groupId, string fields = "cover_photo{icon,source},name,can_upload")
+        public ReadOnlyCollection<Album> GetGroupAlbums(string groupId, string fields = "cover_photo{icon,source,images},name,can_upload")
         {
             dynamic data = _fb.Get($"{groupId}/albums", new {fields});
 
@@ -29,7 +29,7 @@ namespace FbNet.Categories
                 {
                     Id = item.id,
                     Name = item.name,
-                    Cover = item.cover == null ? null : new CoverPhoto{ Id = item.cover.id, Source = item.cover_photo.source, Icon = item.cover_photo.icon},
+                    Cover = CoverPhoto.Create(item.cover_photo),
                     CanUpload = item.can_upload
                 };
                 res.Add(album);
@@ -38,7 +38,7 @@ namespace FbNet.Categories
             return new ReadOnlyCollection<Album>(res);
         }
 
-        public ReadOnlyCollection<Album> GetPageAlbums(string pageId, string fields = "cover_photo{icon,source},name,can_upload")
+        public ReadOnlyCollection<Album> GetPageAlbums(string pageId, string fields = "cover_photo{icon,source,images},name,can_upload")
         {
             dynamic data = _fb.Get($"{pageId}/albums", new {fields});
 
@@ -53,7 +53,7 @@ namespace FbNet.Categories
                 {
                     Id = item.id,
                     Name = item.name,
-                    Cover = item.cover == null ? null : new CoverPhoto{ Id = item.cover.id, Source = item.cover_photo.source, Icon = item.cover_photo.icon},
+                    Cover = CoverPhoto.Create(item.cover_photo),
                     CanUpload = item.can_upload
                 };
                 res.Add(album);
@@ -64,10 +64,22 @@ namespace FbNet.Categories
 
         public Album Create(string title, string groupId)
         {
-            dynamic data = _fb.Post($"{groupId}/albums", new {name=title});
-            if (data == null) return null;
+            var oldAccessToken = _fb.AccessToken;
+            if (_fb.PageId != null)
+                _fb.AccessToken = _fb.PageAccessToken;
 
-            return new Album {CanUpload = true, Id = data.id, Name = title};
+            try
+            {
+                dynamic data = _fb.Post($"{groupId}/albums", new {name = title});
+                if (data == null) return null;
+
+                return new Album {CanUpload = true, Id = data.id, Name = title};
+            }
+            finally
+            {
+                if (_fb.PageId != null)
+                    _fb.AccessToken = oldAccessToken;
+            }
         }
 
         public Album Get(string id, string fields = "can_upload,cover_photo,link,name,privacy,type,updated_time")

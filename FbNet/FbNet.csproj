@@ -62,6 +62,7 @@
     <Compile Include="FbClient.cs" />
     <Compile Include="Model\Album.cs" />
     <Compile Include="Model\CoverPhoto.cs" />
+    <Compile Include="Model\Image.cs" />
     <Compile Include="Model\Page.cs" />
     <Compile Include="Model\Group.cs" />
     <Compile Include="Model\Location.cs" />
