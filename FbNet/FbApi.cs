@@ -106,22 +106,36 @@ namespace FbNet
             if (result == null) return null;
             if (result.headers != null)
             {
-                var headers = (Dictionary<string, string>) result.headers;
-                if (headers.TryGetValue("x-app-usage", out var appUsage))
-                    if (!string.IsNullOrEmpty(appUsage))
+                try
+                {
+                    var headers = (Dictionary<string, string>) result.headers;
+                    if (headers.TryGetValue("x-app-usage", out var appUsage))
                     {
-                        try
+                        if (!string.IsNullOrEmpty(appUsage))
                         {
-                            var json = JObject.Parse(appUsage);
-                            AppUsageInfo.CallCount = int.Parse(json["call_count"].ToString());
-                            AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
-                            AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
-                        }
-                        catch (System.Exception e)
-                        {
-                            // ignore
+                                var json = JObject.Parse(appUsage);
+                                AppUsageInfo.CallCount = int.Parse(json["call_count"].ToString());
+                                AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
+                                AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
                         }
                     }
+                    else if (headers.TryGetValue("x-business-use-case", out var pageAppUsage))
+                    {
+                        if (!string.IsNullOrEmpty(pageAppUsage) && PageId.HasValue)
+                        {
+                                var headerData = JObject.Parse(pageAppUsage);
+                                var json = headerData[PageId.Value.ToString()];
+                                AppUsageInfo.CallCount = int.Parse(json["call_count"].ToString());
+                                AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
+                                AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
+                                AppUsageInfo.EstimatedTimeToRegainAccess = int.Parse(json["estimated_time_to_regain_access"].ToString());
+                        }
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    // ignore
+                }
             }
 
             var data = result.body;
