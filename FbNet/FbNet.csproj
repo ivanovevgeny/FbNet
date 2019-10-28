@@ -35,7 +35,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Facebook, Version=6.0.10.0, Culture=neutral, PublicKeyToken=58cb4f2111d1e6de, processorArchitecture=MSIL">
-      <HintPath>..\packages\Facebook.7.0.6\lib\net45\Facebook.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Libs\Facebook.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.12.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -61,6 +62,7 @@
     <Compile Include="FbApi.cs" />
     <Compile Include="FbClient.cs" />
     <Compile Include="Model\Album.cs" />
+    <Compile Include="Model\AppUsageInfo.cs" />
     <Compile Include="Model\CoverPhoto.cs" />
     <Compile Include="Model\Image.cs" />
     <Compile Include="Model\Page.cs" />

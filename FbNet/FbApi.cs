@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using Facebook;
 using FbNet.Categories;
 using FbNet.Exception;
+using FbNet.Model;
+using Newtonsoft.Json.Linq;
 
 namespace FbNet
 {
@@ -25,10 +28,11 @@ namespace FbNet
         public string SessionSecretKey { get; set; }
 
         //private readonly IFbClient _client;
-        
+
         private readonly FacebookClient Client;
 
         #region Категории
+
         ///// <summary>
         ///// API для работы с пользователями.
         ///// </summary>
@@ -53,8 +57,11 @@ namespace FbNet
         /// API для работы с фотографиями
         /// </summary>
         public PhotosCategory Photos { get; }
+        
+        public AppUsageInfo AppUsageInfo { get; }
+
         #endregion
- 
+
         public FbApi()
         {
             Users = new UsersCategory(this);
@@ -66,13 +73,16 @@ namespace FbNet
 
         public FbApi(string appId, string appSecretKey, string userAgent = "") : this()
         {
+            AppUsageInfo = new AppUsageInfo {CallCount = 0, TotalTime = 0, TotalCpuTime = 0};
+
             Client = new FacebookClient
             {
                 AppId = appId,
                 AppSecret = appSecretKey,
                 IsSecureConnection = true,
                 Version = "v4.0",
-                UseFacebookBeta = false
+                UseFacebookBeta = false,
+                AlwaysReturnHeaders = true
             };
         }
 
@@ -91,21 +101,43 @@ namespace FbNet
             return HandleApiResult(Client.Delete(path));
         }
 
-        private static object HandleApiResult(dynamic result)
+        private object HandleApiResult(dynamic result)
         {
-            if (result != null && result.error != null) 
-                throw new FbApiMethodInvokeException(result.error.message, (int)result.error.code);
-            return result;
+            if (result == null) return null;
+            if (result.headers != null)
+            {
+                var headers = (Dictionary<string, string>) result.headers;
+                if (headers.TryGetValue("x-app-usage", out var appUsage))
+                    if (!string.IsNullOrEmpty(appUsage))
+                    {
+                        try
+                        {
+                            var json = JObject.Parse(appUsage);
+                            AppUsageInfo.CallCount = int.Parse(json["call_count"].ToString());
+                            AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
+                            AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
+                        }
+                        catch (System.Exception e)
+                        {
+                            // ignore
+                        }
+                    }
+            }
+
+            var data = result.body;
+            if (data?.error != null)
+                throw new FbApiMethodInvokeException(data.error.message, (int) data.error.code);
+            return data;
         }
 
         public string RefreshPageAccessToken(long pageId)
         {
             PageId = pageId;
-            dynamic data = Client.Get($"{PageId}", new {fields = "access_token"});
+            dynamic data = Get($"{PageId}", new {fields = "access_token"});
             if (data == null) return null;
             PageAccessToken = data.access_token;
 
             return PageAccessToken;
         }
-    }  
+    }
 }
