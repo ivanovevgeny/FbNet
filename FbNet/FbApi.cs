@@ -15,8 +15,8 @@ namespace FbNet
         /// </summary>
         public string AccessToken
         {
-            get => Client.AccessToken;
-            set => Client.AccessToken = value;
+            get => _client.AccessToken;
+            set => _client.AccessToken = value;
         }
 
         public long? PageId { get; set; }
@@ -27,9 +27,7 @@ namespace FbNet
         /// </summary>
         public string SessionSecretKey { get; set; }
 
-        //private readonly IFbClient _client;
-
-        private readonly FacebookClient Client;
+        private readonly FacebookClient _client;
 
         #region Категории
 
@@ -75,7 +73,7 @@ namespace FbNet
         {
             AppUsageInfo = new AppUsageInfo {CallCount = 0, TotalTime = 0, TotalCpuTime = 0};
 
-            Client = new FacebookClient
+            _client = new FacebookClient
             {
                 AppId = appId,
                 AppSecret = appSecretKey,
@@ -86,62 +84,79 @@ namespace FbNet
             };
         }
 
+        private object Invoke(Func<string, object, dynamic> func, string path, object parameters = null)
+        {
+            try
+            {
+                dynamic result = func.Invoke(path, parameters);
+                if (result == null) return null;
+                SetAppUsage(result.headers);
+
+                var data = result.body;
+                if (data?.error != null)
+                    throw new FbApiMethodInvokeException(data.error.message, (int) data.error.code);
+                return data;
+            }
+            catch (FacebookApiException e)
+            {
+                SetAppUsage(e.Headers);
+                throw new FbApiMethodInvokeException(e.ErrorType, e.ErrorCode);
+            }
+        }
+
         internal object Get(string path, object parameters)
         {
-            return HandleApiResult(Client.Get(path, parameters));
+            return Invoke(_client.Get, path, parameters);
         }
 
         internal object Post(string path, object parameters)
         {
-            return HandleApiResult(Client.Post(path, parameters));
+            return Invoke(_client.Post, path, parameters);
         }
 
-        internal object Delete(string path)
+        internal object Delete(string path, object parameters = null)
         {
-            return HandleApiResult(Client.Delete(path));
+            return Invoke(_client.Delete, path, parameters);
         }
 
-        private object HandleApiResult(dynamic result)
+        public void SetAppUsage(dynamic headersStr)
         {
-            if (result == null) return null;
-            if (result.headers != null)
+            if (headersStr == null) return;
+            try
             {
-                try
+                var headers = (Dictionary<string, string>) headersStr;
+                if (headers.TryGetValue("x-app-usage", out var appUsage))
                 {
-                    var headers = (Dictionary<string, string>) result.headers;
-                    if (headers.TryGetValue("x-app-usage", out var appUsage))
-                    {
-                        if (!string.IsNullOrEmpty(appUsage))
-                        {
-                                var json = JObject.Parse(appUsage);
-                                AppUsageInfo.CallCount = int.Parse(json["call_count"].ToString());
-                                AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
-                                AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
-                        }
-                    }
-                    else if (headers.TryGetValue("x-business-use-case", out var pageAppUsage))
-                    {
-                        if (!string.IsNullOrEmpty(pageAppUsage) && PageId.HasValue)
-                        {
-                                var headerData = JObject.Parse(pageAppUsage);
-                                var json = headerData[PageId.Value.ToString()];
-                                AppUsageInfo.CallCount = int.Parse(json["call_count"].ToString());
-                                AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
-                                AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
-                                AppUsageInfo.EstimatedTimeToRegainAccess = int.Parse(json["estimated_time_to_regain_access"].ToString());
-                        }
-                    }
+                    if (string.IsNullOrEmpty(appUsage)) return;
+
+                    var json = JObject.Parse(appUsage);
+                    AppUsageInfo.CallCount = int.Parse(json["call_count"].ToString());
+                    AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
+                    AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
                 }
-                catch (System.Exception e)
+                else if (headers.TryGetValue("x-business-use-case-usage", out var pageAppUsage))
                 {
-                    // ignore
+                    if (string.IsNullOrEmpty(pageAppUsage) || !PageId.HasValue) return;
+
+                    var headerData = JObject.Parse(pageAppUsage);
+                    var json = headerData[PageId.Value.ToString()];
+                    foreach (dynamic item in json)
+                    {
+                        if (item["type"].Value != "pages") continue;
+                        
+                        AppUsageInfo.CallCount = (int)(item["call_count"].Value);
+                        AppUsageInfo.TotalTime = (int)item["total_time"].Value;
+                        AppUsageInfo.TotalCpuTime = (int)item["total_cputime"].Value;
+                        AppUsageInfo.EstimatedTimeToRegainAccess = (int)item["estimated_time_to_regain_access"].Value;
+
+                        break;
+                    }
                 }
             }
-
-            var data = result.body;
-            if (data?.error != null)
-                throw new FbApiMethodInvokeException(data.error.message, (int) data.error.code);
-            return data;
+            catch (System.Exception e)
+            {
+                // ignore
+            }
         }
 
         public string RefreshPageAccessToken(long pageId)
