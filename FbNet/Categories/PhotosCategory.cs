@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using FbNet.Model;
 
 namespace FbNet.Categories
@@ -53,8 +55,10 @@ namespace FbNet.Categories
             }
         }
 
-        public List<Photo> Get(List<string> ids, string fields = DefaultFields)
+        public ReadOnlyCollection<Photo> Get(List<string> ids, string fields = DefaultFields)
         {
+            var res = new List<Photo>();
+
             var oldAccessToken = _fb.AccessToken;
             if (_fb.PageId != null)
                 _fb.AccessToken = _fb.PageAccessToken;
@@ -64,7 +68,6 @@ namespace FbNet.Categories
                 dynamic data = _fb.Get($"?ids={string.Join(",",ids)}", new {fields});
                 if (data == null) return null;
 
-                var res = new List<Photo>();
                 foreach (var id in ids)
                 {
                     try
@@ -90,7 +93,7 @@ namespace FbNet.Categories
                     }
                 }
 
-                return res;
+                return res.Any() ? new ReadOnlyCollection<Photo>(res) : null;
             }
             finally
             {
@@ -99,15 +102,16 @@ namespace FbNet.Categories
             }
         }
 
-        public List<Photo> GetAlbumPhotos(string albumId, string fields = DefaultFields)
+        public ReadOnlyCollection<Photo> GetAlbumPhotos(string albumId, string fields = DefaultFields)
         {
+            var res = new List<Photo>();
+
             var oldAccessToken = _fb.AccessToken;
             if (_fb.PageId != null)
                 _fb.AccessToken = _fb.PageAccessToken;
 
             try
             {
-                var res = new List<Photo>();
                 var nextUrl = $"{albumId}/photos";
 
                 while (!string.IsNullOrEmpty(nextUrl))
@@ -135,7 +139,7 @@ namespace FbNet.Categories
                     nextUrl = data.paging?.next;
                 }
 
-                return res;
+                return res.Any() ? new ReadOnlyCollection<Photo>(res) : null;
             }
             finally
             {

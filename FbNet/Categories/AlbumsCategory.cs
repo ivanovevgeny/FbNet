@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using FbNet.Model;
 
 namespace FbNet.Categories
@@ -16,50 +17,31 @@ namespace FbNet.Categories
 
         public ReadOnlyCollection<Album> GetGroupAlbums(string groupId, string fields = "cover_photo{icon,source,images},name,can_upload")
         {
-            dynamic data = _fb.Get($"{groupId}/albums", new {fields});
-
-            if (data == null || data.data == null) return null;
-
             var res = new List<Album>();
-            if (!(data.data is List<dynamic> list)) return null;
+            var nextUrl = $"{groupId}/albums";
 
-            foreach (var item in list)
+            while (!string.IsNullOrEmpty(nextUrl))
             {
-                var album = new Album
+                dynamic data = _fb.Get(nextUrl, new {fields});
+                if (data == null || data.data == null) return null;
+                if (!(data.data is List<dynamic> list)) return null;
+
+                foreach (var item in list)
                 {
-                    Id = item.id,
-                    Name = item.name,
-                    Cover = CoverPhoto.Create(item.cover_photo),
-                    CanUpload = item.can_upload
-                };
-                res.Add(album);
+                    var album = new Album
+                    {
+                        Id = item.id,
+                        Name = item.name,
+                        Cover = CoverPhoto.Create(item.cover_photo),
+                        CanUpload = item.can_upload
+                    };
+                    res.Add(album);
+                }
+
+                nextUrl = data.paging?.next;
             }
 
-            return new ReadOnlyCollection<Album>(res);
-        }
-
-        public ReadOnlyCollection<Album> GetPageAlbums(string pageId, string fields = "cover_photo{icon,source,images},name,can_upload")
-        {
-            dynamic data = _fb.Get($"{pageId}/albums", new {fields});
-
-            if (data == null || data.data == null) return null;
-
-            var res = new List<Album>();
-            if (!(data.data is List<dynamic> list)) return null;
-
-            foreach (var item in list)
-            {
-                var album = new Album
-                {
-                    Id = item.id,
-                    Name = item.name,
-                    Cover = CoverPhoto.Create(item.cover_photo),
-                    CanUpload = item.can_upload
-                };
-                res.Add(album);
-            }
-
-            return new ReadOnlyCollection<Album>(res);
+            return res.Any() ? new ReadOnlyCollection<Album>(res) : null;
         }
 
         public Album Create(string title, string groupId)

@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using FbNet.Model;
 
 namespace FbNet.Categories
@@ -15,27 +16,32 @@ namespace FbNet.Categories
 
         public ReadOnlyCollection<Page> GetCurrentUserAccounts(string fields = "name,link,cover,can_post")
         {
-            dynamic data = _fb.Get("me/accounts", new {fields});
-
-            if (data == null || data.data == null) return null;
-
             var res = new List<Page>();
-            if (!(data.data is List<dynamic> list)) return null;
+            var nextUrl = "me/accounts";
 
-            foreach (var item in list)
+            while (!string.IsNullOrEmpty(nextUrl))
             {
-                var page = new Page
+                dynamic data = _fb.Get(nextUrl, new {fields});
+                if (data == null || data.data == null) return null;    
+                if (!(data.data is List<dynamic> list)) return null;
+                
+                foreach (var item in list)
                 {
-                    Id = item.id,
-                    Cover = item.cover == null ? null : new CoverPhoto{ Id = item.cover.id, Source = item.cover.source, Icon = item.cover.icon},
-                    Name = item.name,
-                    CanPost = item.can_post,
-                    Link = item.link,
-                };
-                res.Add(page);
+                    var page = new Page
+                    {
+                        Id = item.id,
+                        Cover = item.cover == null ? null : new CoverPhoto{ Id = item.cover.id, Source = item.cover.source, Icon = item.cover.icon},
+                        Name = item.name,
+                        CanPost = item.can_post,
+                        Link = item.link,
+                    };
+                    res.Add(page);
+                }
+
+                nextUrl = data.paging?.next;
             }
 
-            return new ReadOnlyCollection<Page>(res);
+            return res.Any() ? new ReadOnlyCollection<Page>(res) : null;
         }
         
         public Page Get(long id, string fields = "name,link,cover,can_post")
