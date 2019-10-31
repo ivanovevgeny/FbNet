@@ -46,31 +46,19 @@ namespace FbNet.Categories
         
         public Page Get(long id, string fields = "name,link,cover,can_post")
         {
-            var oldAccessToken = _fb.AccessToken;
-            if (_fb.PageId != null)
-                _fb.AccessToken = _fb.PageAccessToken;
+            dynamic data = _fb.Get($"{id}", new {fields});
+            if (data == null) return null;
 
-            try
+            var info = new Page
             {
-                dynamic data = _fb.Get($"{id}", new {fields});
-                if (data == null) return null;
+                Id = data.id,
+                Cover = data.cover == null ? null : new CoverPhoto{ Id = data.cover.id, Source = data.cover.source, Icon = data.cover.icon},
+                Name = data.name,
+                CanPost = data.can_post,
+                Link = data.link,
+            };
 
-                var info = new Page
-                {
-                    Id = data.id,
-                    Cover = data.cover == null ? null : new CoverPhoto{ Id = data.cover.id, Source = data.cover.source, Icon = data.cover.icon},
-                    Name = data.name,
-                    CanPost = data.can_post,
-                    Link = data.link,
-                };
-
-                return info;
-            }
-            finally
-            {
-                if (_fb.PageId != null)
-                    _fb.AccessToken = oldAccessToken;
-            }
+            return info;
         }
     }
 }

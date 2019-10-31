@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using FbNet.Model;
@@ -26,157 +25,109 @@ namespace FbNet.Categories
 
         public Photo Get(string id, string fields = DefaultFields)
         {
-            var oldAccessToken = _fb.AccessToken;
-            if (_fb.PageId != null)
-                _fb.AccessToken = _fb.PageAccessToken;
+            dynamic data = _fb.Get($"{id}", new {fields});
+            if (data == null) return null;
 
-            try
+            var info = new Photo
             {
-                dynamic data = _fb.Get($"{id}", new {fields});
-                if (data == null) return null;
+                Id = data.id,
+                Name = data.name,
+                Width = data.width,
+                Height = data.height,
+                CanDelete = data.can_delete,
+                Link = data.link,
+                UpdatedTime = Utils.ParseDate(data.updated_time)
+            };
 
-                var info = new Photo
-                {
-                    Id = data.id,
-                    Name = data.name,
-                    Width = data.width,
-                    Height = data.height,
-                    CanDelete = data.can_delete,
-                    Link = data.link,
-                    UpdatedTime = Utils.ParseDate(data.updated_time)
-                };
-
-                return info;
-            }
-            finally
-            {
-                if (_fb.PageId != null)
-                    _fb.AccessToken = oldAccessToken;
-            }
+            return info;
         }
 
         public ReadOnlyCollection<Photo> Get(List<string> ids, string fields = DefaultFields)
         {
             var res = new List<Photo>();
 
-            var oldAccessToken = _fb.AccessToken;
-            if (_fb.PageId != null)
-                _fb.AccessToken = _fb.PageAccessToken;
+            dynamic data = _fb.Get($"?ids={string.Join(",",ids)}", new {fields});
+            if (data == null) return null;
 
-            try
+            foreach (var id in ids)
             {
-                dynamic data = _fb.Get($"?ids={string.Join(",",ids)}", new {fields});
-                if (data == null) return null;
-
-                foreach (var id in ids)
+                try
                 {
-                    try
-                    {
-                        var item = data[id];
-                        if (item == null) continue;
+                    var item = data[id];
+                    if (item == null) continue;
 
-                        var info = new Photo
-                        {
-                            Id = item.id,
-                            Name = item.name,
-                            Width = item.width,
-                            Height = item.height,
-                            CanDelete = item.can_delete,
-                            Link = item.link,
-                            UpdatedTime = Utils.ParseDate(item.updated_time)
-                        };
-                        res.Add(info);
-                    }
-                    catch (System.Exception e)
+                    var info = new Photo
                     {
-                        // ignored
-                    }
+                        Id = item.id,
+                        Name = item.name,
+                        Width = item.width,
+                        Height = item.height,
+                        CanDelete = item.can_delete,
+                        Link = item.link,
+                        UpdatedTime = Utils.ParseDate(item.updated_time)
+                    };
+                    res.Add(info);
                 }
+                catch (System.Exception e)
+                {
+                    // ignored
+                }
+            }
 
-                return res.Any() ? new ReadOnlyCollection<Photo>(res) : null;
-            }
-            finally
-            {
-                if (_fb.PageId != null)
-                    _fb.AccessToken = oldAccessToken;
-            }
+            return res.Any() ? new ReadOnlyCollection<Photo>(res) : null;
         }
 
         public ReadOnlyCollection<Photo> GetAlbumPhotos(string albumId, string fields = DefaultFields)
         {
             var res = new List<Photo>();
 
-            var oldAccessToken = _fb.AccessToken;
-            if (_fb.PageId != null)
-                _fb.AccessToken = _fb.PageAccessToken;
+            var nextUrl = $"{albumId}/photos";
 
-            try
+            while (!string.IsNullOrEmpty(nextUrl))
             {
-                var nextUrl = $"{albumId}/photos";
+                dynamic data = _fb.Get(nextUrl, new {fields});
+                if (data == null || data.data == null) break;
 
-                while (!string.IsNullOrEmpty(nextUrl))
+                var items = data.data;
+
+                foreach (var item in items)
                 {
-                    dynamic data = _fb.Get(nextUrl, new {fields});
-                    if (data == null || data.data == null) break;
-
-                    var items = data.data;
-
-                    foreach (var item in items)
+                    var info = new Photo
                     {
-                        var info = new Photo
-                        {
-                            Id = item.id,
-                            Name = item.name,
-                            Width = item.width,
-                            Height = item.height,
-                            CanDelete = item.can_delete,
-                            Link = item.link,
-                            UpdatedTime = Utils.ParseDate(item.updated_time)
-                        };
-                        res.Add(info);
-                    }
-
-                    nextUrl = data.paging?.next;
+                        Id = item.id,
+                        Name = item.name,
+                        Width = item.width,
+                        Height = item.height,
+                        CanDelete = item.can_delete,
+                        Link = item.link,
+                        UpdatedTime = Utils.ParseDate(item.updated_time)
+                    };
+                    res.Add(info);
                 }
 
-                return res.Any() ? new ReadOnlyCollection<Photo>(res) : null;
+                nextUrl = data.paging?.next;
             }
-            finally
-            {
-                if (_fb.PageId != null)
-                    _fb.AccessToken = oldAccessToken;
-            }
+
+            return res.Any() ? new ReadOnlyCollection<Photo>(res) : null;
         }
 
         public Photo Create(string albumId, string caption, string url, bool published = true, string fields = DefaultFields)
         {
-            var oldAccessToken = _fb.AccessToken;
-            if (_fb.PageId != null)
-                _fb.AccessToken = _fb.PageAccessToken;
+            dynamic data = _fb.Post($"{albumId}/photos", new {caption, url, published, fields});
+            if (data == null) return null;
 
-            try
+            var info = new Photo
             {
-                dynamic data = _fb.Post($"{albumId}/photos", new {caption, url, published, fields});
-                if (data == null) return null;
+                Id = data.id,
+                Name = data.name,
+                Width = data.width,
+                Height = data.height,
+                CanDelete = data.can_delete,
+                Link = data.link,
+                UpdatedTime = Utils.ParseDate(data.updated_time)
+            };
 
-                var info = new Photo
-                {
-                    Id = data.id,
-                    Name = data.name,
-                    Width = data.width,
-                    Height = data.height,
-                    CanDelete = data.can_delete,
-                    Link = data.link,
-                    UpdatedTime = Utils.ParseDate(data.updated_time)
-                };
-
-                return info;
-            }
-            finally
-            {
-                if (_fb.PageId != null)
-                    _fb.AccessToken = oldAccessToken;
-            }
+            return info;
         }
 
         // нельзя редактировать, только удалять и заново вставлять
@@ -200,20 +151,8 @@ namespace FbNet.Categories
         
         public bool Delete(string id)
         {
-            var oldAccessToken = _fb.AccessToken;
-            if (_fb.PageId != null)
-                _fb.AccessToken = _fb.PageAccessToken;
-
-            try
-            {
-                dynamic data = _fb.Delete($"{id}");
-                return data != null && data.success;
-            }
-            finally
-            {
-                if (_fb.PageId != null)
-                    _fb.AccessToken = oldAccessToken;
-            }
+            dynamic data = _fb.Delete($"{id}");
+            return data != null && data.success;
         }
     }
 }

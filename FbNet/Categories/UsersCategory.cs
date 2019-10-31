@@ -16,7 +16,7 @@ namespace FbNet.Categories
             dynamic data = _fb.Get("me", new {fields});
             if (data == null) return null;
 
-            var address = data.address;
+            //var address = data.address;
             var user = new User
             {
                 Id = data.id,
@@ -24,7 +24,7 @@ namespace FbNet.Categories
                 Name = data.name,
                 FirstName = data.first_name,
                 LastName = data.last_name,
-                Picture = data.picture?.data == null ? null : new UserPicture {Url = data.picture.data.url, Height = data.picture.data.height, Width = data.picture.data.width}
+                Picture = data.picture?.data == null ? null : new UserPicture { Url = data.picture.data.url, Height = data.picture.data.height, Width = data.picture.data.width }
             };
 
             /*if (address != null)
@@ -35,9 +35,8 @@ namespace FbNet.Categories
                     City = address.city
                 }
             }*/
- 
+
             return user;
         }
-
     }
 }

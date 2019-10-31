@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using FbNet.Model;
@@ -46,22 +45,10 @@ namespace FbNet.Categories
 
         public Album Create(string title, string groupId)
         {
-            var oldAccessToken = _fb.AccessToken;
-            if (_fb.PageId != null)
-                _fb.AccessToken = _fb.PageAccessToken;
+            dynamic data = _fb.Post($"{groupId}/albums", new {name = title});
+            if (data == null) return null;
 
-            try
-            {
-                dynamic data = _fb.Post($"{groupId}/albums", new {name = title});
-                if (data == null) return null;
-
-                return new Album {CanUpload = true, Id = data.id, Name = title};
-            }
-            finally
-            {
-                if (_fb.PageId != null)
-                    _fb.AccessToken = oldAccessToken;
-            }
+            return new Album {CanUpload = true, Id = data.id, Name = title};
         }
 
         public Album Get(string id, string fields = "can_upload,cover_photo,link,name,privacy,type,updated_time")

@@ -10,16 +10,35 @@ namespace FbNet
 {
     public class FbApi
     {
+        public readonly ApiTokenType ApiTokenType;
+
         /// <summary>
         /// Токен для доступа к методам API
         /// </summary>
+        private string _accessToken;
         public string AccessToken
         {
-            get => _client.AccessToken;
-            set => _client.AccessToken = value;
+            get => _accessToken;
+            set
+            {
+                _accessToken = value;
+                if (ApiTokenType == ApiTokenType.User)
+                    _client.AccessToken = _accessToken;
+            }
         }
 
-        public long? PageId { get; set; }
+        private long? _pageId;
+        public long? PageId
+        {
+            get => _pageId;
+            set
+            {
+                _pageId = value;
+                if (ApiTokenType == ApiTokenType.Page)
+                    RefreshPageAccessToken();
+            }
+        }
+
         public string PageAccessToken { get; private set; }
 
         /// <summary>
@@ -60,8 +79,9 @@ namespace FbNet
 
         #endregion
 
-        public FbApi()
+        public FbApi(ApiTokenType apiTokenType)
         {
+            ApiTokenType = apiTokenType;
             Users = new UsersCategory(this);
             Pages = new AccountsCategory(this);
             Groups = new GroupsCategory(this);
@@ -69,7 +89,7 @@ namespace FbNet
             Photos = new PhotosCategory(this);
         }
 
-        public FbApi(string appId, string appSecretKey, string userAgent = "") : this()
+        public FbApi(ApiTokenType apiTokenType, string appId, string appSecretKey, string userAgent = "") : this(apiTokenType)
         {
             AppUsageInfo = new AppUsageInfo {RateLimitType = FbRateLimitType.App, CallCount = 0, TotalTime = 0, TotalCpuTime = 0};
 
@@ -82,6 +102,9 @@ namespace FbNet
                 UseFacebookBeta = false,
                 AlwaysReturnHeaders = true
             };
+
+            if (PageId != null)
+                RefreshPageAccessToken();
         }
 
         private object Invoke(Func<string, object, dynamic> func, string path, object parameters = null)
@@ -125,8 +148,10 @@ namespace FbNet
             try
             {
                 var headers = (Dictionary<string, string>) headersStr;
-                if (headers.TryGetValue("x-app-usage", out var appUsage))
+
+                if (ApiTokenType == ApiTokenType.User)
                 {
+                    if (!headers.TryGetValue("x-app-usage", out var appUsage)) return;
                     if (string.IsNullOrEmpty(appUsage)) return;
 
                     var json = JObject.Parse(appUsage);
@@ -134,9 +159,13 @@ namespace FbNet
                     AppUsageInfo.CallCount = int.Parse(json["call_count"].ToString());
                     AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
                     AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
+
+                    return;
                 }
-                else if (headers.TryGetValue("x-business-use-case-usage", out var pageAppUsage))
+
+                if (ApiTokenType == ApiTokenType.Page)
                 {
+                    if (!headers.TryGetValue("x-business-use-case-usage", out var pageAppUsage)) return;
                     if (string.IsNullOrEmpty(pageAppUsage) || !PageId.HasValue) return;
 
                     var headerData = JObject.Parse(pageAppUsage);
@@ -162,14 +191,21 @@ namespace FbNet
             }
         }
 
-        public string RefreshPageAccessToken(long pageId)
+        public void RefreshPageAccessToken()
         {
-            PageId = pageId;
-            dynamic data = Get($"{PageId}", new {fields = "access_token"});
-            if (data == null) return null;
-            PageAccessToken = data.access_token;
-
-            return PageAccessToken;
+            _client.AccessToken = AccessToken;
+            try
+            {
+                dynamic data = Get($"{PageId}", new {fields = "access_token"});
+                if (data == null) return;
+                PageAccessToken = data.access_token;
+                _client.AccessToken = PageAccessToken;
+            }
+            catch (System.Exception e)
+            {
+                _client.AccessToken = PageAccessToken;
+                throw;
+            }
         }
     }
 }
