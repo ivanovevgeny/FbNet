@@ -71,7 +71,7 @@ namespace FbNet
 
         public FbApi(string appId, string appSecretKey, string userAgent = "") : this()
         {
-            AppUsageInfo = new AppUsageInfo {CallCount = 0, TotalTime = 0, TotalCpuTime = 0};
+            AppUsageInfo = new AppUsageInfo {RateLimitType = FbRateLimitType.App, CallCount = 0, TotalTime = 0, TotalCpuTime = 0};
 
             _client = new FacebookClient
             {
@@ -130,6 +130,7 @@ namespace FbNet
                     if (string.IsNullOrEmpty(appUsage)) return;
 
                     var json = JObject.Parse(appUsage);
+                    AppUsageInfo.RateLimitType = FbRateLimitType.App;
                     AppUsageInfo.CallCount = int.Parse(json["call_count"].ToString());
                     AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
                     AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
@@ -143,7 +144,9 @@ namespace FbNet
                     foreach (dynamic item in json)
                     {
                         if (item["type"].Value != "pages") continue;
-                        
+
+                        AppUsageInfo.BusinessObjectID = PageId.Value.ToString();
+                        AppUsageInfo.RateLimitType = FbRateLimitType.Pages;
                         AppUsageInfo.CallCount = (int)(item["call_count"].Value);
                         AppUsageInfo.TotalTime = (int)item["total_time"].Value;
                         AppUsageInfo.TotalCpuTime = (int)item["total_cputime"].Value;
