@@ -11,6 +11,8 @@ namespace FbNet
     public class FbApi
     {
         public readonly ApiTokenType ApiTokenType;
+        
+        public event Action<AppUsageInfo> OnGetAppUsage;
 
         /// <summary>
         /// Токен для доступа к методам API
@@ -34,7 +36,7 @@ namespace FbNet
             set
             {
                 _pageId = value;
-                if (ApiTokenType == ApiTokenType.Page)
+                if (ApiTokenType == ApiTokenType.Page && _pageId != null)
                     RefreshPageAccessToken();
             }
         }
@@ -79,7 +81,7 @@ namespace FbNet
 
         #endregion
 
-        public FbApi(ApiTokenType apiTokenType)
+        private FbApi(ApiTokenType apiTokenType)
         {
             ApiTokenType = apiTokenType;
             Users = new UsersCategory(this);
@@ -89,7 +91,7 @@ namespace FbNet
             Photos = new PhotosCategory(this);
         }
 
-        public FbApi(ApiTokenType apiTokenType, string appId, string appSecretKey, string userAgent = "") : this(apiTokenType)
+        public FbApi(ApiTokenType apiTokenType, string appId, string appSecretKey, string accessToken, long? pageId = null) : this(apiTokenType)
         {
             AppUsageInfo = new AppUsageInfo {RateLimitType = FbRateLimitType.App, CallCount = 0, TotalTime = 0, TotalCpuTime = 0};
 
@@ -103,8 +105,8 @@ namespace FbNet
                 AlwaysReturnHeaders = true
             };
 
-            if (PageId != null)
-                RefreshPageAccessToken();
+            AccessToken = accessToken;
+            PageId = pageId;
         }
 
         private object Invoke(Func<string, object, dynamic> func, string path, object parameters = null)
@@ -160,6 +162,8 @@ namespace FbNet
                     AppUsageInfo.TotalTime = int.Parse(json["total_time"].ToString());
                     AppUsageInfo.TotalCpuTime = int.Parse(json["total_cputime"].ToString());
 
+                    OnGetAppUsage?.Invoke(AppUsageInfo);
+
                     return;
                 }
 
@@ -180,6 +184,8 @@ namespace FbNet
                         AppUsageInfo.TotalTime = (int)item["total_time"].Value;
                         AppUsageInfo.TotalCpuTime = (int)item["total_cputime"].Value;
                         AppUsageInfo.EstimatedTimeToRegainAccess = (int)item["estimated_time_to_regain_access"].Value;
+
+                        OnGetAppUsage?.Invoke(AppUsageInfo);
 
                         break;
                     }
