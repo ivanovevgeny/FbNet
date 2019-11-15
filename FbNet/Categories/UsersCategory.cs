@@ -11,7 +11,7 @@ namespace FbNet.Categories
             _fb = fb;
         }
 
-        public User GetCurrentUser(string fields = "id,name,email,first_name,last_name,birthday,gender,locale,address,picture")
+        public User GetCurrentUser(string fields = "id,name,first_name,last_name,picture")
         {
             dynamic data = _fb.Get("me", new {fields});
             if (data == null) return null;
@@ -20,7 +20,6 @@ namespace FbNet.Categories
             var user = new User
             {
                 Id = data.id,
-                Email = data.email,
                 Name = data.name,
                 FirstName = data.first_name,
                 LastName = data.last_name,
