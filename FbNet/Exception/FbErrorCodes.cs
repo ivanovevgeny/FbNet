@@ -11,7 +11,7 @@
         MissionPermission = 200,
         AppLimitReached = 341,
         TemporarilyBlockedForPoliciesViolations = 368,
-        DuplicatePost= 506,
+        DuplicatePost = 506,
         ErrorPostingLink = 1609005
     }
     
