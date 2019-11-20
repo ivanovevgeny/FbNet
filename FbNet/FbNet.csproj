@@ -56,8 +56,6 @@
     <Compile Include="Categories\AlbumsCategory.cs" />
     <Compile Include="Categories\UsersCategory.cs" />
     <Compile Include="Categories\PhotosCategory.cs" />
-    <Compile Include="Exception\FbApiException.cs" />
-    <Compile Include="Exception\FbApiMethodInvokeException.cs" />
     <Compile Include="Exception\FbErrorCodes.cs" />
     <Compile Include="FbApi.cs" />
     <Compile Include="FbClient.cs" />

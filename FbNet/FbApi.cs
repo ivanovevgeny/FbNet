@@ -119,13 +119,13 @@ namespace FbNet
 
                 var data = result.body;
                 if (data?.error != null)
-                    throw new FbApiMethodInvokeException(data.error.message, (int) data.error.code);
+                    throw new FacebookApiException((string)data.error.message, "ErrorInResponse", (int) data.error.code); //FbApiMethodInvokeException(data.error.message, (int) data.error.code);
                 return data;
             }
             catch (FacebookApiException e)
             {
                 SetAppUsage(e.Headers);
-                throw new FbApiMethodInvokeException(e.ErrorType, e.ErrorCode);
+                throw; // new FbApiMethodInvokeException(e);
             }
         }
 
