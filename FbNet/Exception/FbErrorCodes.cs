@@ -9,6 +9,7 @@
         PermissionDenied = 10,
         TokenExpired = 190,
         MissionPermission = 200,
+        MissingOrInvalidImageFile = 324,
         AppLimitReached = 341,
         TemporarilyBlockedForPoliciesViolations = 368,
         DuplicatePost = 506,
