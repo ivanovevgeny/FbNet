@@ -7,6 +7,7 @@
         PageToManyCalls = 32,
         CustomLevelThrottling = 613,
         PermissionDenied = 10,
+        InvalidParameter = 100,
         TokenExpired = 190,
         MissionPermission = 200,
         MissingOrInvalidImageFile = 324,
