@@ -2,6 +2,7 @@
 {
     public enum FbErrorCodes
     {
+        TemporaryIssueDueToDowntime = 2,
         AppToManyCalls = 4,
         UserToManyCalls = 17,
         PageToManyCalls = 32,
@@ -10,6 +11,7 @@
         InvalidParameter = 100,
         TokenExpired = 190,
         MissionPermission = 200,
+        AlbumIsFull = 321,
         MissingOrInvalidImageFile = 324,
         AppLimitReached = 341,
         TemporarilyBlockedForPoliciesViolations = 368,
