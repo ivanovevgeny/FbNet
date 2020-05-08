@@ -14,14 +14,15 @@ namespace FbNet.Categories
             _fb = fb;
         }
 
-        public ReadOnlyCollection<Album> GetGroupAlbums(string groupId, string fields = "cover_photo{icon,source,images},name,can_upload")
+        public ReadOnlyCollection<Album> GetGroupAlbums(string groupId, string fields = "cover_photo{icon,source,images},name,can_upload", int? limit = null)
         {
             var res = new List<Album>();
             var nextUrl = $"{groupId}/albums";
 
             while (!string.IsNullOrEmpty(nextUrl))
             {
-                dynamic data = _fb.Get(nextUrl, new {fields});
+                object parameters = limit != null ? (object)(new {fields, limit}) : new {fields};
+                dynamic data = _fb.Get(nextUrl, parameters);
                 if (data == null || data.data == null) return null;
                 if (!(data.data is List<dynamic> list)) return null;
 
