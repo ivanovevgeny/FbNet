@@ -100,7 +100,7 @@ namespace FbNet
                 AppId = appId,
                 AppSecret = appSecretKey,
                 IsSecureConnection = true,
-                Version = "v5.0",
+                Version = "v12.0",
                 UseFacebookBeta = false,
                 AlwaysReturnHeaders = true
             };
