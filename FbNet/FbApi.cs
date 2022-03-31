@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using Facebook;
 using FbNet.Categories;
-using FbNet.Exception;
 using FbNet.Model;
 using Newtonsoft.Json.Linq;
 
@@ -11,7 +12,7 @@ namespace FbNet
     public class FbApi
     {
         public readonly ApiTokenType ApiTokenType;
-        
+
         public event Action<AppUsageInfo> OnGetAppUsage;
 
         /// <summary>
@@ -76,10 +77,78 @@ namespace FbNet
         /// API для работы с фотографиями
         /// </summary>
         public PhotosCategory Photos { get; }
-        
+
         public AppUsageInfo AppUsageInfo { get; }
 
         #endregion
+
+        /// <summary>
+        /// Кол-во пробуемых при 1 запросе прокси
+        /// </summary>
+        public static int MAX_PROXY_TRY_COUNT = 3;
+
+        /// <summary>
+        /// Получение списка прокси, определяется пользователем библиотеки, если задано запросы выполняются с указанными прокси
+        /// </summary>
+        public static Func<ICollection<WebProxy>> GetProxiesHandler;
+
+        private List<string> _invalidProxies = new List<string>();
+
+        private WebProxy _proxy = null;
+
+        private bool _useProxy = false;
+
+        private ICollection<WebProxy> GetProxies()
+        {
+            if (GetProxiesHandler == null) return null;
+
+            return GetProxiesHandler();
+        }
+
+        private WebProxy GetNextProxy()
+        {
+            var proxies = GetProxies();
+
+            if (proxies == null || proxies.Count == 0) return null;
+
+            var validProxies = proxies.Where(x => !_invalidProxies.Contains(x.Address.ToString())).ToList();
+
+            if (!validProxies.Any()) return null;
+
+            var rnd = new Random(DateTime.UtcNow.GetHashCode());// - хорошо бы возвращать случайный, но один и тот же прокси каждый запрос!
+            var proxyIndex = rnd.Next(0, validProxies.Count() - 1);
+
+            return validProxies[proxyIndex];
+        }
+
+        private bool ChangeProxy()
+        {
+            if (_proxy != null)
+            {
+                _invalidProxies.Add(_proxy.Address.ToString());
+            }
+
+            return SetProxy();
+        }
+
+        private bool SetProxy()
+        {
+            _proxy = GetNextProxy();
+
+            if (_proxy != null)
+            {
+                _client.SetHttpWebRequestFactory(uri =>
+                {
+                    var request = new HttpWebRequestWrapper((HttpWebRequest)WebRequest.Create(uri))
+                    {
+                        Proxy = _proxy
+                    };
+                    return request;
+                });
+            }
+
+            return _proxy != null;
+        }
 
         private FbApi(ApiTokenType apiTokenType)
         {
@@ -93,7 +162,7 @@ namespace FbNet
 
         public FbApi(ApiTokenType apiTokenType, string appId, string appSecretKey, string accessToken, long? pageId = null) : this(apiTokenType)
         {
-            AppUsageInfo = new AppUsageInfo {RateLimitType = FbRateLimitType.App, CallCount = 0, TotalTime = 0, TotalCpuTime = 0};
+            AppUsageInfo = new AppUsageInfo { RateLimitType = FbRateLimitType.App, CallCount = 0, TotalTime = 0, TotalCpuTime = 0 };
 
             _client = new FacebookClient
             {
@@ -105,29 +174,54 @@ namespace FbNet
                 AlwaysReturnHeaders = true
             };
 
+            _useProxy = SetProxy();
+
             AccessToken = accessToken;
             PageId = pageId;
         }
 
         private object Invoke(Func<string, object, dynamic> func, string path, object parameters = null)
         {
-            try
-            {
-                dynamic result = func.Invoke(path, parameters);
-                if (result == null) return null;
-                SetAppUsage(result.headers);
+            int tryCount = _useProxy ? MAX_PROXY_TRY_COUNT : 1;
 
-                var data = result.body;
-                if (data?.error != null)
-                    throw new FacebookApiException((string)data.error.message, "ErrorInResponse", (int) data.error.code); //FbApiMethodInvokeException(data.error.message, (int) data.error.code);
-                return data;
-            }
-            catch (FacebookApiException e)
+            while (tryCount > 0)
             {
-                SetAppUsage(e.Headers);
-                throw; // new FbApiMethodInvokeException(e);
+                tryCount--;
+
+                try
+                {
+                    dynamic result = func.Invoke(path, parameters);
+                    if (result == null) return null;
+                    SetAppUsage(result.headers);
+
+                    var data = result.body;
+                    if (data?.error != null)
+                        throw new FacebookApiException((string)data.error.message, "ErrorInResponse", (int)data.error.code); //FbApiMethodInvokeException(data.error.message, (int) data.error.code);
+                    return data;
+                }
+                catch (FacebookApiException e)
+                {
+                    SetAppUsage(e.Headers);
+                    throw; // new FbApiMethodInvokeException(e);
+
+                }
+                catch //ловим исключения недействительного прокси?????? todo:!!!! Дописать!!!
+                {
+                    var isProxyValid = false;
+
+                    if (!isProxyValid)
+                    {
+                        if (!ChangeProxy()) //не удалось установить прокси (все использованы)
+                        {
+                            break;
+                        }
+                    }
+                }
             }
+
+            return null;
         }
+
 
         internal object Get(string path, object parameters)
         {
@@ -149,7 +243,7 @@ namespace FbNet
             if (headersStr == null) return;
             try
             {
-                var headers = (Dictionary<string, string>) headersStr;
+                var headers = (Dictionary<string, string>)headersStr;
 
                 if (ApiTokenType == ApiTokenType.User)
                 {
@@ -202,7 +296,7 @@ namespace FbNet
             _client.AccessToken = AccessToken;
             try
             {
-                dynamic data = Get($"{PageId}", new {fields = "access_token"});
+                dynamic data = Get($"{PageId}", new { fields = "access_token" });
                 if (data == null) return;
                 PageAccessToken = data.access_token;
                 _client.AccessToken = PageAccessToken;
