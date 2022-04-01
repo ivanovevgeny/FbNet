@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -88,34 +89,56 @@ namespace FbNet
         public static int MAX_PROXY_TRY_COUNT = 3;
 
         /// <summary>
+        /// Интервал повтора проверки невалидных прокси, в минутах
+        /// </summary>
+        public static int INVALID_PROXY_RETRY_MINUTES = 10;
+
+        /// <summary>
         /// Получение списка прокси, определяется пользователем библиотеки, если задано запросы выполняются с указанными прокси
         /// </summary>
-        public static Func<ICollection<WebProxy>> GetProxiesHandler;
+        public static Func<ICollection<WebProxy>> GetProxyListHandler;
 
-        private List<string> _invalidProxies = new List<string>();
+        private static readonly ConcurrentDictionary<string, DateTime> _invalidProxies = new ConcurrentDictionary<string, DateTime>(); //статик, т.к. списки недействующих прокси необходимо поддерживать от запроса к запросу
 
         private WebProxy _proxy = null;
 
         private bool _useProxy = false;
 
-        private ICollection<WebProxy> GetProxies()
+        private ICollection<WebProxy> GetProxyList()
         {
-            if (GetProxiesHandler == null) return null;
+            if (GetProxyListHandler == null) return null;
 
-            return GetProxiesHandler();
+            return GetProxyListHandler();
         }
 
         private WebProxy GetNextProxy()
         {
-            var proxies = GetProxies();
+            var proxies = GetProxyList();
 
             if (proxies == null || proxies.Count == 0) return null;
 
-            var validProxies = proxies.Where(x => !_invalidProxies.Contains(x.Address.ToString())).ToList();
+            //удаляем возможно устаревшие невалидные прокси
+            if (_invalidProxies.Any())
+            {
+                var keys = _invalidProxies.Keys.ToList();
+                var validBefore = DateTime.UtcNow.AddMinutes(-INVALID_PROXY_RETRY_MINUTES); //добавленные до этой даты прокси считаются валидными, пробуем повторно
+
+                foreach (var k in keys)
+                {
+                    if (_invalidProxies.TryGetValue(k, out DateTime keyDate))
+                    {
+                        if (keyDate <= validBefore)
+                            _invalidProxies.TryRemove(k, out DateTime v);
+                    }
+                }
+            }
+            //.удаляем возможно устаревшие невалидные прокси
+
+            var validProxies = proxies.Where(x => !_invalidProxies.ContainsKey(x.Address.ToString())).ToList();
 
             if (!validProxies.Any()) return null;
 
-            var rnd = new Random(DateTime.UtcNow.GetHashCode());// - хорошо бы возвращать случайный, но один и тот же прокси каждый запрос!
+            var rnd = new Random(DateTime.UtcNow.GetHashCode());
             var proxyIndex = rnd.Next(0, validProxies.Count() - 1);
 
             return validProxies[proxyIndex];
@@ -125,7 +148,7 @@ namespace FbNet
         {
             if (_proxy != null)
             {
-                _invalidProxies.Add(_proxy.Address.ToString());
+                _invalidProxies.TryAdd(_proxy.Address.ToString(), DateTime.UtcNow);
             }
 
             return SetProxy();
@@ -203,19 +226,28 @@ namespace FbNet
                 {
                     SetAppUsage(e.Headers);
                     throw; // new FbApiMethodInvokeException(e);
-
                 }
-                catch //ловим исключения недействительного прокси?????? todo:!!!! Дописать!!!
+                catch (WebExceptionWrapper e)
                 {
-                    var isProxyValid = false;
+                    if (tryCount == 0) throw; //попытки выполнения запроса исчерпаны (что для прокси что без)
 
-                    if (!isProxyValid)
+                    if (e.Status == WebExceptionStatus.ConnectFailure || e.Status == WebExceptionStatus.ProtocolError) // в случае ошибки, связанной с прокси меняем прокси и повторяем запрос, в случае нерабочего прокси исключение вылетит при tryCount == 0
                     {
-                        if (!ChangeProxy()) //не удалось установить прокси (все использованы)
+                        if (!ChangeProxy())
                         {
-                            break;
+                            throw; //не удалось установить прокси, смысла выполнять дальше нет
                         }
                     }
+                    else
+                    {
+                        throw; //ошибка не связанная с прокси
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    var exc = e;
+
+                    throw;
                 }
             }
 
