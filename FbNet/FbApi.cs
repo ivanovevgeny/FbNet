@@ -173,6 +173,8 @@ namespace FbNet
             return _proxy != null;
         }
 
+        public static List<string> InvalidProxies { get { return _invalidProxies?.Keys.ToList(); } }
+
         private FbApi(ApiTokenType apiTokenType)
         {
             ApiTokenType = apiTokenType;
@@ -206,7 +208,6 @@ namespace FbNet
         private object Invoke(Func<string, object, dynamic> func, string path, object parameters = null)
         {
             int tryCount = _useProxy ? MAX_PROXY_TRY_COUNT : 1;
-
             while (tryCount > 0)
             {
                 tryCount--;
@@ -227,11 +228,24 @@ namespace FbNet
                     SetAppUsage(e.Headers);
                     throw; // new FbApiMethodInvokeException(e);
                 }
-                catch (WebExceptionWrapper e)
+                catch (System.Exception e)
                 {
-                    if (tryCount == 0) throw; //попытки выполнения запроса исчерпаны (что для прокси что без)
+                    if (tryCount == 0 || _proxy == null) throw; //попытки выполнения запроса исчерпаны (что для прокси что без)
 
-                    if (e.Status == WebExceptionStatus.ConnectFailure || e.Status == WebExceptionStatus.ProtocolError) // в случае ошибки, связанной с прокси меняем прокси и повторяем запрос, в случае нерабочего прокси исключение вылетит при tryCount == 0
+                    if (!IsProxyAlive(_proxy))
+                    {
+                        if (!ChangeProxy()) //не удалось сменить прокси, далее не выполняем
+                        {
+                            throw;
+                        }
+                    }
+                    else
+                    {
+                        throw; //ошибка не связана с прокси
+                    }
+
+                    /* 27.04.2022 проверка ранее, не точная, вызывает блокировку прокси, вероятно статусный код возвращается и в случае валидного прокси при неправильных параметрах запроса
+                    if (((WebExceptionWrapper)e).Status == WebExceptionStatus.ConnectFailure || ((WebExceptionWrapper)e).Status == WebExceptionStatus.ProtocolError) // в случае ошибки, связанной с прокси меняем прокси и повторяем запрос, в случае нерабочего прокси исключение вылетит при tryCount == 0
                     {
                         if (!ChangeProxy())
                         {
@@ -242,18 +256,32 @@ namespace FbNet
                     {
                         throw; //ошибка не связанная с прокси
                     }
-                }
-                catch (System.Exception e)
-                {
-                    var exc = e;
-
-                    throw;
+                    */
                 }
             }
 
             return null;
         }
 
+        private bool IsProxyAlive(WebProxy proxy)
+        {
+            const string checkUrl = "https://graph.facebook.com/facebook/picture?redirect=false";
+
+            try
+            {
+                var request = (HttpWebRequest)WebRequest.Create(checkUrl);
+                request.Method = "HEAD";
+                request.Proxy = proxy;
+                request.Timeout = 10000;
+                request.ReadWriteTimeout = 10000;
+                var response = (HttpWebResponse)request.GetResponse();
+                var statusCode = (int)response.StatusCode;
+                return statusCode == 200;
+            }
+            catch { }
+
+            return false;
+        }
 
         internal object Get(string path, object parameters)
         {
